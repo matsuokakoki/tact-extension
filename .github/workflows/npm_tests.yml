@@ -1,4 +1,4 @@
-name: Chrome extension
+name: Chrome and Edge extensions
 on:
   push:
     branches: [main]
@@ -18,8 +18,12 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test -- --runInBand
-      - run: npm run build:chrome
+      - run: npm run build:chromium
       - uses: actions/upload-artifact@v4
         with:
           name: Chrome-extension
           path: dist/release/tact-extension-chrome-*.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Edge-extension
+          path: dist/release/tact-extension-edge-*.zip

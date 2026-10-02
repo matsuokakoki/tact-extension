@@ -9,7 +9,7 @@ module.exports = class MergeManifestWebpackPlugin {
     }
 
     apply(compiler) {
-        compiler.hooks.done.tap("ManifestPlugin", async (stats) => {
+        compiler.hooks.done.tapPromise("ManifestPlugin", async (stats) => {
             const { browser } = this.options;
             const packagePath = path.resolve(__dirname, "..") + "/package.json";
             const manifestPath = path.resolve(__dirname, "..") + "/manifest.json";

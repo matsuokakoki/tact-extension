@@ -1,3 +1,4 @@
+import { googleIdentity, clearGoogleTokens } from './features/googleIdentity';
 import { prepareMaterial } from './features/chatgptTransfer';
 import { syncReminders, reminderStore, reminderKey } from './features/calendar/reminders';
 import { setStorageDirect } from "./features/storage";
@@ -186,7 +187,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     await reminderStore.write(`tactCompletion:${reminderKey(type, item)}`, request.checked);
                     const settings = await new Promise<any>(resolve => chrome.storage.local.get(['userAuthenticatedExplicitly'], resolve));
                     if (!settings.userAuthenticatedExplicitly) { sendResponse({ success: true, skipped: true }); break; }
-                    const token = await new Promise<string>((resolve, reject) => chrome.identity.getAuthToken({ interactive: false }, token => {
+                    const token = await new Promise<string>((resolve, reject) => googleIdentity.getAuthToken({ interactive: false }, token => {
                         if (chrome.runtime.lastError || !token) reject(new Error('カレンダー削除には再ログインが必要です。次回取得時に再試行します。')); else resolve(token);
                     }));
                     const result = await syncToCalendar({ [type === 'assignment' ? 'assignments' : 'quizzes']: [{ ...item, hasFinished: request.checked }] }, token);
@@ -341,7 +342,7 @@ async function authenticateGoogle(): Promise<string> {
 
     // まず既存トークンを非対話的に取得し、有効なら再利用する
     const existingToken = await new Promise<string | null>((resolve) => {
-        chrome.identity.getAuthToken({ interactive: false }, (token) => {
+        googleIdentity.getAuthToken({ interactive: false }, (token) => {
             if (chrome.runtime.lastError || !token) {
                 resolve(null);
             } else {
@@ -360,14 +361,14 @@ async function authenticateGoogle(): Promise<string> {
         } catch {
             logger.debug("[DEBUG] Existing token is invalid, removing cached token and re-authenticating");
             await new Promise<void>((resolve) => {
-                chrome.identity.removeCachedAuthToken({ token: existingToken }, () => resolve());
+                googleIdentity.removeCachedAuthToken({ token: existingToken }, () => resolve());
             });
         }
     }
 
     return new Promise((resolve, reject) => {
         logger.debug("[DEBUG] Starting getAuthToken...");
-        chrome.identity.getAuthToken(
+        googleIdentity.getAuthToken(
             {
                 interactive: true,
                 scopes: [
@@ -383,7 +384,7 @@ async function authenticateGoogle(): Promise<string> {
 
                 if (chrome.runtime.lastError || !token) {
                     logger.debug("[DEBUG] Authentication failed:", chrome.runtime.lastError?.message);
-                    reject(new Error(chrome.runtime.lastError?.message || "No token"));
+                    reject(new Error(chrome.runtime.lastError?.message || "Googleの認証に失敗しました。手動でログインし直してください。"));
                 } else {
                     logger.debug("[DEBUG] Token received, verifying security...");
                     // Verify token validity before returning
@@ -406,7 +407,7 @@ async function authenticateGoogle(): Promise<string> {
                             logger.debug("[DEBUG] Clearing authentication and retrying...");
 
                             // Clear the failed token and try fresh authentication
-                            chrome.identity.removeCachedAuthToken({ token }, () => {
+                            googleIdentity.removeCachedAuthToken({ token }, () => {
                                 logger.debug("[DEBUG] Cached token cleared, attempting fresh authentication...");
                                 // Recursive call for fresh authentication (only once to avoid infinite loop)
                                 clearAuthenticationAndReauth().then(resolve).catch(reject);
@@ -493,7 +494,7 @@ async function getGoogleAccounts(): Promise<any[]> {
 
             logger.debug("🔧 [AUTH DEBUG] User has explicitly authenticated, checking for existing tokens...");
             // Only check for existing tokens if user has explicitly authenticated
-            chrome.identity.getAuthToken({ interactive: false }, async (token) => {
+            googleIdentity.getAuthToken({ interactive: false }, async (token) => {
                 logger.debug("🔧 [AUTH DEBUG] getAuthToken (non-interactive) callback executed");
                 logger.debug("🔧 [AUTH DEBUG] Token exists:", !!token);
                 logger.debug("🔧 [AUTH DEBUG] Chrome runtime error:", chrome.runtime.lastError);
@@ -529,6 +530,7 @@ async function getGoogleAccounts(): Promise<any[]> {
                                 throw new Error("Invalid or unverified user info");
                             }
 
+                            await setStorageDirect({ tactGoogleLoginHint: userInfo.email });
                             resolve([
                                 {
                                     id: userInfo.sub || userInfo.id, // Use 'sub' (subject) as primary ID
@@ -540,13 +542,8 @@ async function getGoogleAccounts(): Promise<any[]> {
                             ]);
                         } else if (response.status === 401) {
                             logger.debug("[DEBUG] Token expired (401), clearing auth flag");
-                            // Token expired or invalid, clear explicit auth flag and return empty array
-                            chrome.storage.local.remove("userAuthenticatedExplicitly", () => {
-                                if (chrome.runtime.lastError) {
-                                    logger.error("Failed to clear auth flag:", chrome.runtime.lastError.message);
-                                }
-                            });
-                            logger.debug("Token expired, user needs to manually re-authenticate");
+                            // Keep opt-in; discard only the failed token so the next sync can renew silently.
+                            await clearGoogleTokens();
                             resolve([]);
                         } else {
                             logger.error("[DEBUG] User info fetch failed:", response.status, response.statusText);
@@ -593,22 +590,7 @@ async function logoutGoogle(): Promise<void> {
                 resolve();
             });
         };
-        // MV3: clearAllCachedAuthTokens が利用可能な場合はそちらを使用
-        if (typeof (chrome.identity as any).clearAllCachedAuthTokens === "function") {
-            (chrome.identity as any).clearAllCachedAuthTokens(() => {
-                logger.debug("🔧 [LOGOUT DEBUG] All cached tokens removed");
-                clearStorage();
-            });
-        } else {
-            // フォールバック: 既存トークンを1つずつ削除
-            chrome.identity.getAuthToken({ interactive: false }, (token) => {
-                if (token) {
-                    chrome.identity.removeCachedAuthToken({ token }, clearStorage);
-                } else {
-                    clearStorage();
-                }
-            });
-        }
+        clearGoogleTokens().then(clearStorage, clearStorage);
     });
 }
 
@@ -618,6 +600,7 @@ function clearAllAuthenticationData(callback?: () => void): void {
 
     const keysToRemove = [
         "userAuthenticatedExplicitly",
+        "tactGoogleLoginHint",
         "oauth_state",
         "lastSyncTime",
         "sentEventKeys",
@@ -728,7 +711,7 @@ async function performCalendarSync() {
 
             // 既存トークンで認証を取得
             token = await new Promise<string>((resolve, reject) => {
-                chrome.identity.getAuthToken({ interactive: false }, (t) => {
+                googleIdentity.getAuthToken({ interactive: false }, (t) => {
                     if (chrome.runtime.lastError || !t) {
                         reject(new Error("No valid authentication token"));
                     } else {
@@ -798,7 +781,7 @@ async function clearAuthenticationAndReauth(): Promise<string> {
 
     // Perform simple re-authentication without recursive verification
     return new Promise((resolve, reject) => {
-        chrome.identity.getAuthToken(
+        googleIdentity.getAuthToken(
             {
                 interactive: true,
                 scopes: [

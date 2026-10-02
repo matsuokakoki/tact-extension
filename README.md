@@ -1,6 +1,6 @@
 # TACT Extension — 松岡個人用
 
-[Comfortable NU](https://github.com/rozwer/comfortable-NU) を土台にした、名古屋大学TACT向けChrome拡張機能です。
+[Comfortable NU](https://github.com/rozwer/comfortable-NU) を土台にした、名古屋大学TACT向けChrome / Microsoft Edge拡張機能です。
 
 追加した機能は次の3つです。
 
@@ -8,25 +8,28 @@
 - **未完了課題のGoogleカレンダー予定**：現在より先、7日以内の締切、未チェック、TACT上でも未提出の課題を追加。チェック直後に予定を削除し、チェックを外すと対象期間内なら再作成。締切変更には更新で対応します。
 - **資料をChatGPTに添付**：資料リンク横の `[ChatGPT]` から、既存のブラウザ版ChatGPTタブに資料を添付し、解説用プロンプトを入力。送信は自分で押します。OpenAI APIは使用しません。
 
-## インストール（Windows / Chrome）
+## インストール（Windows / Chrome・Edge）
 
-Node.js 22以降、Git、Chromeを用意してください。PowerShellで実行できます。
+Node.js 22以降、Git、最新版のChromeまたはMicrosoft Edgeを用意してください。PowerShellで実行できます。
 
 ```powershell
 git clone https://github.com/matsuokakoki/tact-extension.git
 cd tact-extension
 npm ci
-npm run build:chrome
+npm run build:chromium
 ```
 
 成功時の出力には `compiled successfully` と `Merge manifest: Success` が含まれます。
 
-1. Chromeで `chrome://extensions` を開く。
+1. Chromeは `chrome://extensions`、Edgeは `edge://extensions` を開く。
 2. 「デベロッパーモード」をオンにする。
-3. 「パッケージ化されていない拡張機能を読み込む」から **`dist/source/chrome`** を選ぶ。
+3. 「パッケージ化されていない拡張機能を読み込む」から Chromeは **`dist/source/chrome`**、Edgeは **`dist/source/edge`** を選ぶ。
 4. TACTと、既に開いているChatGPTタブを再読み込みする。元のComfortable NUは二重動作を避けるため無効化する。
 
-Chrome用ZIPは `dist/release/tact-extension-chrome-v3.2.0.zip` に生成します。GitHub Actionsの **Chrome extension** 成果物からも取得できます。ZIPの場合は展開したフォルダを読み込んでください。
+ZIPは `dist/release/tact-extension-chrome-v3.2.0.zip` と `tact-extension-edge-v3.2.0.zip` に生成します。GitHub Actionsの **Chrome-extension / Edge-extension** 成果物からも取得できます。ZIPの場合は展開したフォルダを読み込んでください。
+
+
+ChromeとEdgeの設定・保存先・取得履歴・カレンダー予定IDは別々です。両方で同じ課題の自動同期をオンにすると予定が重複するため、カレンダー自動同期は普段使う一方でオンにしてください。ChatGPTも操作元と同じブラウザのタブを使用します。Microsoft Edge実機での動作確認は未実施です。
 
 ## 授業資料の取得
 
@@ -53,15 +56,15 @@ Chrome用ZIPは `dist/release/tact-extension-chrome-v3.2.0.zip` に生成しま�
 1. `npm run configure:google -- --id` を実行して拡張機能IDを確認します。現在のキーでのIDは **`eiadkmdoaekdgklaobneflibnmomjlmi`** です。公開キーは同じIDを保つために同梱しています。
 2. [Google Cloud Console](https://console.cloud.google.com/)で自分のプロジェクトを作り、Google Calendar APIを有効にします。
 3. Google Auth Platformで同意画面を設定し、テストユーザーに自分のGoogleアカウントを追加します。Calendar、userinfo.email、userinfo.profileの権限を設定します。
-4. OAuthクライアントの種類 **「Chrome拡張機能」** を選び、上記の拡張機能IDを登録します。
+4. OAuthクライアントの種類 **「ウェブ アプリケーション」** を選び、承認済みリダイレクトURIに **`https://eiadkmdoaekdgklaobneflibnmomjlmi.chromiumapp.org/google`** を登録します。JavaScript生成元の追加は不要です。以前作成した「Chrome拡張機能」クライアントではこの方式を使えないため、ウェブ用を新規作成してください。
 5. 得られたクライアントIDを以下に渡します。クライアントシークレットは不要です。
 
 ```powershell
 npm run configure:google -- YOUR_CLIENT_ID.apps.googleusercontent.com
-npm run build:chrome
+npm run build:chromium
 ```
 
-成功時は `Google OAuth設定済み` と表示されます。Chromeの拡張機能一覧で再読み込みし、TACTも再読み込みしてください。TACTヘッダーのカレンダーボタン → **「Googleでログイン」** を押して認証します。
+成功時は `Google OAuth設定済み` と表示されます。使用しているブラウザの拡張機能一覧で再読み込みし、TACTも再読み込みしてください。TACTヘッダーのカレンダーボタン → **「Googleでログイン」** を押して認証します。
 
 初期対象は課題のみです。小テストは既存の手動同期画面で選んだ場合に同期します。
 
@@ -73,11 +76,13 @@ npm run build:chrome
 - 別の旧Comfortable NUが過去に作成した予定は引き継ぎ・削除しません。この拡張が記録した予定だけ操作します。
 - 拡張機能のデータを消す/アンインストールすると、予定IDも失われます。カレンダーに残った予定は手動削除してください。
 
-設定の根拠：[Chrome公式OAuth手順](https://developer.chrome.com/docs/extensions/how-to/integrate/oauth)、[manifest oauth2](https://developer.chrome.com/docs/extensions/reference/manifest/oauth2)。
+Chrome・Edgeとも `identity.launchWebAuthFlow` で認証します。トークンは拡張機能専用のセッションストレージで期限まで再利用し、期限切れ・ブラウザ再起動後は同意済みGoogleセッションを使った非対話更新を試みます。Google側でログインや追加同意が必要な場合は手動ログインが必要です。クライアントシークレットはコードに入れません。ログアウトするとキャッシュを消します。
+
+設定の根拠：[Googleクライアント側OAuth](https://developers.google.com/identity/protocols/oauth2/javascript-implicit-flow)、[Chrome Identity API](https://developer.chrome.com/docs/extensions/reference/api/identity)、[Edge対応API](https://learn.microsoft.com/en-us/microsoft-edge/extensions/developer-guide/api-support)。
 
 ## 資料をChatGPTへ渡す
 
-1. 同じChromeプロファイルで [ChatGPT](https://chatgpt.com/) にログインし、入力欄が空の会話を開いておく。
+1. 同じブラウザ・同じプロファイルで [ChatGPT](https://chatgpt.com/) にログインし、入力欄が空の会話を開いておく。
 2. TACTの授業資料リンク横の **`[ChatGPT]`** を押す。資料取得画面の資料一覧にも同じボタンがあります。
 3. 既存タブに切り替わり、資料添付が開始され、あらかじめ決めたプロンプトが入力されます。
 4. **アップロード完了とファイル名を確認し、自分で送信する。**
@@ -97,13 +102,13 @@ DOMの変更などで添付欄が見つからない場合は、ChatGPTの「＋�
 ```powershell
 npm run typecheck
 npm test -- --runInBand
-npm run build:chrome
+npm run build:chromium
 npm run test:browser
 ```
 
-単体テストは7日期限の境界、提出済み除外、直接削除、削除失敗の再試行、再チェック、締切変更、重複防止、アカウント分離、公式Sakaiの再帰データ、名前衝突、差分判定、送信URL制限を検証します。
+単体テストは7日期限の境界、提出済み除外、直接削除、削除失敗の再試行、再チェック、締切変更、重複防止、アカウント分離、公式Sakaiの再帰データ、名前衝突、差分判定、送信URL制限、共通OAuthのキャッシュ・非対話更新・ログアウト・state/戻り先/権限検証を検証します。
 
-ブラウザテストはChromiumとPlaywrightを使用します。初回は `npm install --no-save playwright` と `npx playwright install chromium` が必要です。模擬のTACT/ChatGPT画面とファイル保存先で動作を確認します。
+ブラウザテストはChromiumとPlaywrightを使用します。初回は `npm install --no-save playwright` と `npx playwright install chromium` が必要です。模擬のTACT/ChatGPT画面とファイル保存先で動作を確認します。Edge用ビルドはPowerShellで `$env:TACT_TEST_BUILD_BROWSER="edge"` を設定して `npm run test:browser` を実行すると検証できます。これはEdge本体ではなくChromiumでの検証です。
 
 実際のTACTへのログイン、WindowsのOneDrive書き込み、Google OAuth/Calendar、ログイン済みChatGPTへの添付は開発環境では未検証です。最初は1科目・1資料・1課題で確認してください。
 

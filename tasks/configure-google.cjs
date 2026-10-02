@@ -15,4 +15,5 @@ if (arg && arg !== '--id') {
 fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
 const id = crypto.createHash('sha256').update(Buffer.from(manifest.key, 'base64')).digest('hex').slice(0, 32).replace(/[0-9a-f]/g, c => String.fromCharCode(97 + parseInt(c, 16)));
 console.log('拡張機能ID: ' + id);
-console.log(manifest.oauth2 ? 'Google OAuth設定済み。npm run build:chrome を実行し、拡張機能を再読み込みしてください。' : 'Google Cloudで「Chrome拡張機能」のOAuthクライアントをこのIDで作成してください。');
+console.log('承認済みリダイレクトURI: https://' + id + '.chromiumapp.org/google');
+console.log(manifest.oauth2 ? 'Google OAuth設定済み。npm run build:chromium を実行し、拡張機能を再読み込みしてください。' : 'Google Cloudで「ウェブ アプリケーション」のOAuthクライアントを作成し、上記のリダイレクトURIを登録してください。');

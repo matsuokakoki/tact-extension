@@ -8,12 +8,13 @@
     "build:chrome": "node tasks/build-chrome.cjs",
     "build:firefox": "NODE_ENV=production webpack --config tasks/webpack.config.firefox.js && node tasks/release firefox",
     "build:safari": "NODE_ENV=production webpack --config tasks/webpack.config.safari.js && node tasks/release safari",
-    "build:edge": "NODE_ENV=production webpack --config tasks/webpack.config.edge.js && node tasks/release edge",
+    "build:edge": "node tasks/build-chrome.cjs edge",
     "convert:safari": "NODE_ENV=production npm run build:safari && xcrun safari-web-extension-converter dist/source/safari --project-location dist/source/safari-proj --app-name \"Comfortable-NU\" --bundle-identifier \"com.das08.ComfortableNU.Safari\" --force\n",
     "build:all": "npm run build:chrome && npm run build:firefox && npm run build:safari && npm run build:edge",
     "configure:google": "node tasks/configure-google.cjs",
     "typecheck": "tsc --noEmit",
-    "test:browser": "node tasks/browser-test.cjs"
+    "test:browser": "node tasks/browser-test.cjs",
+    "build:chromium": "npm run build:chrome && npm run build:edge"
   },
   "author": "Kazuki Takeda, Shoji Kajita(Kyoto University), rozwer(Nagoya University)",
   "license": "Apache-2.0",

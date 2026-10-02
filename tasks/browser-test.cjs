@@ -4,6 +4,9 @@ const fs = require('fs');
 const path = require('path');
 const assert = require('assert/strict');
 const root = path.resolve(__dirname, '..');
+const target = process.env.TACT_TEST_BUILD_BROWSER || 'chrome';
+if (!['chrome', 'edge'].includes(target)) throw new Error('Unsupported build target');
+const buildRoot = path.join(root, 'dist/source', target);
 (async () => {
     const browser = await chromium.launch({ headless: true, ...(process.env.TACT_TEST_CHROMIUM ? { executablePath: process.env.TACT_TEST_CHROMIUM } : {}), args: ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--no-zygote', '--single-process', '--use-gl=angle', '--use-angle=swiftshader', '--in-process-gpu'] });
     try {
@@ -12,7 +15,7 @@ const root = path.resolve(__dirname, '..');
         page.on('pageerror', error => errors.push(String(error)));
         await page.route('https://extension.test/**', async route => {
             const filename = new URL(route.request().url()).pathname.slice(1);
-            const file = path.join(root, 'dist/source/chrome', filename);
+            const file = path.join(buildRoot, filename);
             await route.fulfill({ body: fs.readFileSync(file), contentType: filename.endsWith('.js') ? 'application/javascript' : filename.endsWith('.css') ? 'text/css' : 'text/html' });
         });
         await page.addInitScript(() => {
@@ -78,7 +81,7 @@ const root = path.resolve(__dirname, '..');
             document.querySelector('form').onsubmit = event => { event.preventDefault(); window.sent++; };
             window.chrome = { runtime: { id: 'test-extension', onMessage: { addListener(listener) { window.bridge = listener; } } } };
         });
-        await chat.addScriptTag({ path: path.join(root, 'dist/source/chrome/chatgptBridge.js') });
+        await chat.addScriptTag({ path: path.join(buildRoot, 'chatgptBridge.js') });
         const dispatch = request => chat.evaluate(request => new Promise(resolve => window.bridge(request, { id: 'test-extension' }, resolve)), request);
         assert.equal((await dispatch({ action: 'tactChatGPTBegin', id: '1', filename: 'lecture.pdf', mime: 'application/pdf', prompt: 'この資料を解説してください' })).success, true);
         await dispatch({ action: 'tactChatGPTChunk', id: '1', chunk: Buffer.from('%PDF-mock').toString('base64') });
