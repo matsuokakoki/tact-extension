@@ -1,6 +1,6 @@
 {
   "name": "tact-extension",
-  "version": "3.2.0",
+  "version": "3.2.1",
   "description": "Personal TACT extension: incremental course downloads, completion-aware Calendar reminders, and ChatGPT attachments",
   "main": "index.ts",
   "scripts": {

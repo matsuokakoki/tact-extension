@@ -99,5 +99,13 @@
     }
   ],
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAkNYkoGY8A4NBNAQl2GBfQj2ggj9R57s9FGOG8MmQTCx+6Ps9tsmKI/NrTrXpaDPCuMYfShV1jom8V9V+WnxiR3fhWK2s15N/ZzPJW5iJQYEQSdgBjaH0dNic8F3udBZDcZpmidzNm5iXLTLJ4q0e7S7wStwyXDi0FKaady2VToIiy6pqO47/6Ocjmsz69vKNH+3zjPjxFsJiIzbkIF3QphQv8qQuX9fxhZxp95KJdfLDgiorv87oxZENbsvZOJOAJ05i7T38ZKpRWyhjAC3+32wh57fGqWzF6E7pcCZZ5PtO7IPrt01xrhUiNJgzIZfZ7UTwdLcKMM2TGlinZxyCXwIDAQAB",
-  "minimum_chrome_version": "114"
+  "minimum_chrome_version": "114",
+  "oauth2": {
+    "client_id": "58488227129-6r44tlq3oeji5atfil77us1ok4gi4bfo.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/calendar",
+      "https://www.googleapis.com/auth/userinfo.email",
+      "https://www.googleapis.com/auth/userinfo.profile"
+    ]
+  }
 }

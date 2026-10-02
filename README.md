@@ -6,7 +6,7 @@
 
 - **授業資料の差分ダウンロード**：初回に科目の「授業資料」フォルダを指定。以後はその保存先を記憶し、新規・更新資料だけ取得。先生のフォルダ構造を保持します。
 - **未完了課題のGoogleカレンダー予定**：現在より先、7日以内の締切、未チェック、TACT上でも未提出の課題を追加。チェック直後に予定を削除し、チェックを外すと対象期間内なら再作成。締切変更には更新で対応します。
-- **資料をChatGPTに添付**：資料リンク横の `[ChatGPT]` から、既存のブラウザ版ChatGPTタブに資料を添付し、解説用プロンプトを入力。送信は自分で押します。OpenAI APIは使用しません。
+- **資料をChatGPTに添付**：資料リンク横の `[ChatGPT]` から、既存のブラウザ版ChatGPTタブに資料を添付し、解説用プロンプトを入力。送信は自分で押します。解説の後に理解度テスト4問と正解・解説を求めます。OpenAI APIは使用しません。
 
 ## インストール（Windows / Chrome・Edge）
 
@@ -26,7 +26,7 @@ npm run build:chromium
 3. 「パッケージ化されていない拡張機能を読み込む」から Chromeは **`dist/source/chrome`**、Edgeは **`dist/source/edge`** を選ぶ。
 4. TACTと、既に開いているChatGPTタブを再読み込みする。元のComfortable NUは二重動作を避けるため無効化する。
 
-ZIPは `dist/release/tact-extension-chrome-v3.2.0.zip` と `tact-extension-edge-v3.2.0.zip` に生成します。GitHub Actionsの **Chrome-extension / Edge-extension** 成果物からも取得できます。ZIPの場合は展開したフォルダを読み込んでください。
+ZIPは `dist/release/tact-extension-chrome-v3.2.1.zip` と `tact-extension-edge-v3.2.1.zip` に生成します。GitHub Actionsの **Chrome-extension / Edge-extension** 成果物からも取得できます。ZIPの場合は展開したフォルダを読み込んでください。
 
 
 ChromeとEdgeの設定・保存先・取得履歴・カレンダー予定IDは別々です。両方で同じ課題の自動同期をオンにすると予定が重複するため、カレンダー自動同期は普段使う一方でオンにしてください。ChatGPTも操作元と同じブラウザのタブを使用します。Microsoft Edge実機での動作確認は未実施です。
@@ -51,7 +51,7 @@ ChromeとEdgeの設定・保存先・取得履歴・カレンダー予定IDは�
 
 ## Googleカレンダーの初期設定
 
-**個人用として読み込む拡張機能には、自分のGoogle OAuthクライアントの設定が必要です。** 元作者のクライアントIDは流用していません。資料ダウンロード・ChatGPT添付はこの設定なしで使えます。
+**松岡個人用のGoogle OAuthクライアントIDは設定済みです。** Google側でCalendar APIの有効化・自分のテストユーザー登録・下記リダイレクトURIの登録を済ませたら、TACTのカレンダーボタンから「Googleでログイン」を押せます。別のGoogle Cloudプロジェクトを使う場合は以下の手順で設定します。 元作者のクライアントIDは流用していません。資料ダウンロード・ChatGPT添付はこの設定なしで使えます。
 
 1. `npm run configure:google -- --id` を実行して拡張機能IDを確認します。現在のキーでのIDは **`eiadkmdoaekdgklaobneflibnmomjlmi`** です。公開キーは同じIDを保つために同梱しています。
 2. [Google Cloud Console](https://console.cloud.google.com/)で自分のプロジェクトを作り、Google Calendar APIを有効にします。

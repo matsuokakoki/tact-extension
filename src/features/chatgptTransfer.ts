@@ -1,4 +1,4 @@
-import { DEFAULT_MATERIAL_PROMPT } from './chatgpt';
+import { resolveMaterialPrompt } from './chatgpt';
 export function validateMaterialUrl(raw: string): URL {
     const url = new URL(raw);
     if (url.origin !== 'https://tact.ac.thers.ac.jp' || !url.pathname.startsWith('/access/content/group/') || url.pathname.endsWith('/')) throw new Error('TACTの授業資料URLではありません');
@@ -37,7 +37,7 @@ export async function prepareMaterial(rawUrl: string, name: string): Promise<any
         const length = Number(response.headers.get('content-length'));
         if (length > 32 * 1024 * 1024) throw new Error('32MBを超える資料はダウンロードして手動で添付してください。');
         const stored = await new Promise<any>(resolve => chrome.storage.local.get('tactMaterialPrompt', resolve));
-        const prompt = stored.tactMaterialPrompt || DEFAULT_MATERIAL_PROMPT;
+        const prompt = resolveMaterialPrompt(stored.tactMaterialPrompt);
         let filename = name || decodeURIComponent(url.pathname.split('/').pop() || 'material.pdf');
         // Preserve the actual file extension when TACT's display title has none.
         const sourceName = decodeURIComponent(url.pathname.split('/').pop() || '');

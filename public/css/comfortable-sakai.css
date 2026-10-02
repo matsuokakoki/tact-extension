@@ -1199,3 +1199,19 @@ input[type="radio"]:disabled + label {
     color: #333435 !important;
     border: 0 solid #E5E5E5 !important;
 }
+
+/* Explicit foreground and background keep the materials action readable on TACT themes. */
+.cs-header-btn.cs-materials-btn {
+    color: #ffffff !important;
+    background-color: #174ea6 !important;
+    padding: 6px 10px !important;
+    border: 1px solid #ffffff !important;
+    border-radius: 6px;
+}
+.cs-header-btn.cs-materials-btn:hover {
+    background-color: #123d82 !important;
+}
+.cs-header-btn.cs-materials-btn:focus-visible {
+    outline: 2px solid #ffffff;
+    outline-offset: 2px;
+}

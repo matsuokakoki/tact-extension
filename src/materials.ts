@@ -1,10 +1,10 @@
-import { DEFAULT_MATERIAL_PROMPT, sendMaterialToChatGPT } from './features/chatgpt';
+import { DEFAULT_MATERIAL_PROMPT, resolveMaterialPrompt, sendMaterialToChatGPT } from './features/chatgpt';
 import { planFiles, needsDownload, Resource, flattenResources } from './features/materialDownload/plan';
 import { CourseDownloadState, DirectoryHandle, readCourse, writeCourse } from './features/materialDownload/storage';
 const promptBox = document.querySelector('#prompt') as HTMLTextAreaElement;
 const resourcesList = document.querySelector('#resources') as HTMLElement;
 promptBox.value = DEFAULT_MATERIAL_PROMPT;
-chrome.storage.local.get('tactMaterialPrompt', data => { if (data.tactMaterialPrompt) promptBox.value = data.tactMaterialPrompt; });
+chrome.storage.local.get('tactMaterialPrompt', data => { promptBox.value = resolveMaterialPrompt(data.tactMaterialPrompt); });
 promptBox.addEventListener('change', () => chrome.storage.local.set({ tactMaterialPrompt: promptBox.value }));
 const select = document.querySelector('#course') as HTMLSelectElement;
 const choose = document.querySelector('#choose') as HTMLButtonElement;

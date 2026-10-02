@@ -78,8 +78,8 @@ chrome.runtime.onMessage.addListener((request, sender, respond) => {
                 respond({ success: true, message: '添付開始。プロンプトはChatGPT画面からコピーして手動入力してください。' });
                 return false;
             }
-            notice('資料の添付を開始し、解説用プロンプトを入力しました。アップロード完了とファイル名を確認してから送信してください。');
-            respond({ success: true, message: 'ChatGPTへ添付開始・プロンプト入力済み。アップロード完了を確認して送信してください。' });
+            document.getElementById('tact-chatgpt-notice')?.remove();
+            respond({ success: true, message: '添付・プロンプト入力済み' });
             return false;
         } else if (request.action === 'tactChatGPTCancel') { clearTransfer(); }
         respond({ success: true });

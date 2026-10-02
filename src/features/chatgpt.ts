@@ -1,4 +1,9 @@
-export const DEFAULT_MATERIAL_PROMPT = 'この授業資料を、日本語で初学者にも分かるように詳しく解説してください。まず全体像を示し、重要な概念、専門用語の意味、理解に必要な前提知識、具体例の順に説明してください。資料にない内容を補う場合は、その旨を明示してください。コード例を示す場合は出力結果も教えてください。';
+export const LEGACY_MATERIAL_PROMPT = 'この授業資料を、日本語で初学者にも分かるように詳しく解説してください。まず全体像を示し、重要な概念、専門用語の意味、理解に必要な前提知識、具体例の順に説明してください。資料にない内容を補う場合は、その旨を明示してください。コード例を示す場合は出力結果も教えてください。';
+export const DEFAULT_MATERIAL_PROMPT = LEGACY_MATERIAL_PROMPT + '最後に、理解度を確認するテストを4問作成してください。問題を先にまとめて示し、その後に各問の正解と、なぜその答えになるのかを初学者にも分かるように詳しく解説してください。';
+/** Upgrade the previous default while preserving user-written prompts. */
+export function resolveMaterialPrompt(saved: unknown): string {
+    return typeof saved === 'string' && saved.trim() && saved !== LEGACY_MATERIAL_PROMPT ? saved : DEFAULT_MATERIAL_PROMPT;
+}
 export function sendMaterialToChatGPT(url: string, filename: string): Promise<any> {
     return new Promise((resolve, reject) => chrome.runtime.sendMessage({ action: 'prepareMaterialInChatGPT', url, filename }, response => {
         if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));

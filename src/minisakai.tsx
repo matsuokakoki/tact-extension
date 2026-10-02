@@ -46,7 +46,7 @@ miniSakai.id = "miniSakai";
 miniSakai.classList.add("cs-minisakai", "cs-tab");
 
 const materialsButton = document.createElement('button');
-materialsButton.className = 'cs-header-btn';
+materialsButton.className = 'cs-header-btn cs-materials-btn';
 materialsButton.textContent = '資料を取得';
 materialsButton.style.cssText = 'font-size:13px;font-weight:600;white-space:nowrap';
 materialsButton.title = '科目ごとに保存先を記憶し、新規・更新資料だけ取得';
