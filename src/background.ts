@@ -576,7 +576,9 @@ async function syncToCalendar(data: any, token?: string): Promise<any> {
     const accounts = await getGoogleAccounts();
     const account = accounts[0];
     if (!account?.email) throw new Error('Googleアカウントを確認できません');
-    return syncReminders(data, token, account.email);
+    const result = await syncReminders(data, token, account.email);
+    for (const error of data.fetchErrors || []) result.errors.push({ type: 'fetch', title: '', error });
+    return result;
 }
 
 // Complete logout - remove all authentication data and cached tokens

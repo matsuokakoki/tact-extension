@@ -26,7 +26,7 @@ npm run build:chromium
 3. 「パッケージ化されていない拡張機能を読み込む」から Chromeは **`dist/source/chrome`**、Edgeは **`dist/source/edge`** を選ぶ。
 4. TACTと、既に開いているChatGPTタブを再読み込みする。元のComfortable NUは二重動作を避けるため無効化する。
 
-ZIPは `dist/release/tact-extension-chrome-v3.2.1.zip` と `tact-extension-edge-v3.2.1.zip` に生成します。GitHub Actionsの **Chrome-extension / Edge-extension** 成果物からも取得できます。ZIPの場合は展開したフォルダを読み込んでください。
+ZIPは `dist/release/tact-extension-chrome-v3.2.2.zip` と `tact-extension-edge-v3.2.2.zip` に生成します。GitHub Actionsの **Chrome-extension / Edge-extension** 成果物からも取得できます。ZIPの場合は展開したフォルダを読み込んでください。
 
 
 ChromeとEdgeの設定・保存先・取得履歴・カレンダー予定IDは別々です。両方で同じ課題の自動同期をオンにすると予定が重複するため、カレンダー自動同期は普段使う一方でオンにしてください。ChatGPTも操作元と同じブラウザのタブを使用します。Microsoft Edge実機での動作確認は未実施です。
@@ -68,6 +68,8 @@ npm run build:chromium
 
 初期対象は課題のみです。小テストは既存の手動同期画面で選んだ場合に同期します。
 
+- お気に入り一覧に加え、現在開いている授業ページも取得対象になります。対象の授業ページで星ボタンから「再取得」を押すと、課題を実際に取り直して同期します。取得失敗はエラーにし、「取得件数・除外理由を確認」で締切・提出状態・対象件数を確認できます。
+- 手動同期では、この拡張が記録した予定IDだけを確認・更新し、Google側で削除された予定は対象期間内なら再作成します。通常の自動同期は変更のない予定へのAPI呼び出しを省きます。
 - 右側パネルを開くと、認証済み・自動同期オンの場合に取り込みます。既存の定期同期も使用できます。
 - ☑チェック直後は、登録済みの予定IDを指定してDELETEします。Googleカレンダー全体の検索はしません。
 - 通信・認証に失敗した場合、チェック状態と予定IDを保持し、エラーを表示します。再認証後、パネルを開くか同期ボタンを押して再試行してください。

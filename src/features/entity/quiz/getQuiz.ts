@@ -13,7 +13,7 @@ import { QuizFetchTimeStorage, QuizzesStorage } from "../../../constant";
  * @param useCache - Whether to use browser cache for fetch requests.
  * @returns {Promise<Array<Quiz>>}
  */
-const getSakaiQuizzes = async (hostname: string, courses: Array<Course>, useCache: boolean = false): Promise<Array<Quiz>> => {
+const getSakaiQuizzes = async (hostname: string, courses: Array<Course>, useCache: boolean = false, reportFailures?: (failures: string[]) => void): Promise<Array<Quiz>> => {
     const quizzes: Array<Quiz> = [];
     const pending: Array<Promise<Quiz>> = [];
     for (const course of courses) {
@@ -23,6 +23,9 @@ const getSakaiQuizzes = async (hostname: string, courses: Array<Course>, useCach
     for (const quiz of result) {
         if (quiz.status === "fulfilled") quizzes.push(quiz.value);
     }
+    const failures = result.flatMap((entry: any, index: number) => entry.status === 'rejected' ? [`${courses[index].name}: ${String(entry.reason)}`] : []);
+    if (failures.length) reportFailures?.(failures);
+    if (courses.length && failures.length === courses.length) throw new Error('TACTからの取得に失敗しました: ' + failures.join(' / '));
     await toStorage(hostname, QuizFetchTimeStorage, new Date().getTime() / 1000);
     return quizzes;
 };
@@ -45,10 +48,10 @@ const getStoredQuizzes = (hostname: string): Promise<Array<Quiz>> => {
  * @param useCache - A flag to use cache.
  * @returns {Promise<Array<Quiz>>}
  */
-export const getQuizzes = async (hostname: string, courses: Array<Course>, useCache: boolean): Promise<Array<Quiz>> => {
+export const getQuizzes = async (hostname: string, courses: Array<Course>, useCache: boolean, reportFailures?: (failures: string[]) => void): Promise<Array<Quiz>> => {
     const storedQuizzes = await getStoredQuizzes(hostname);
     if (useCache) return storedQuizzes;
-    const sakaiQuizzes = await getSakaiQuizzes(hostname, courses, useCache);
+    const sakaiQuizzes = await getSakaiQuizzes(hostname, courses, useCache, reportFailures);
     const merged = mergeEntities<Quiz>(storedQuizzes, sakaiQuizzes);
     await toStorage(hostname, QuizzesStorage, merged);
     return merged;

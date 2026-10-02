@@ -14,28 +14,25 @@ export const getBaseURL = (): string => {
     return baseURL;
 };
 
-/* Sakai のお気に入り欄からCourseを取得する（結果はページ内でキャッシュ） */
-let cachedCourses: Array<Course> | null = null;
+/* Discover visible course links on every call; include the currently open site. */
 export const fetchCourse = (): Array<Course> => {
-    if (cachedCourses) return cachedCourses;
-    const baseURL = getBaseURL();
-    const elementCollection = document.getElementsByClassName("fav-sites-entry");
-    const elements = Array.prototype.slice.call(elementCollection);
-    const courses: Array<Course> = [];
-    for (const elem of elements) {
-        const name = elem.getElementsByTagName("div")[0].getElementsByTagName("a")[0];
-        const m = name.href.match("(https?://[^/]+)/portal/site-?[a-z]*/([^/]+)");
-        if (m && m[2][0] !== "~") {
-            const course: Course = {
-                id: m[2],
-                name: name.title,
-                link: baseURL + "/portal/site/" + m[2]
-            };
-            courses.push(course);
-        }
+    const courses = new Map<string, Course>();
+    const add = (href: string, name: string) => {
+        let url: URL;
+        try { url = new URL(href, location.href); } catch { return; }
+        if (url.origin !== location.origin) return;
+        const match = url.pathname.match(/^\/portal\/site(?:-[a-z]+)?\/([^/]+)/);
+        if (!match) return;
+        let id: string;
+        try { id = decodeURIComponent(match[1]); } catch { return; }
+        if (id.startsWith('~') || courses.has(id)) return;
+        courses.set(id, { id, name: name.trim() || id, link: url.origin + '/portal/site/' + encodeURIComponent(id) });
+    };
+    for (const link of Array.from(document.querySelectorAll<HTMLAnchorElement>('.fav-sites-entry a[href], a[href*="/portal/site/"] , a[href*="/portal/site-"]'))) {
+        add(link.href, link.title || link.textContent || '');
     }
-    cachedCourses = courses;
-    return courses;
+    add(location.href, document.title);
+    return Array.from(courses.values());
 };
 
 /* Sakai APIから課題を取得する */

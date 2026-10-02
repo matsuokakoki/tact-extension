@@ -21,12 +21,19 @@ export const reminderStore: ReminderStore = {
 export function reminderKey(type: string, item: ReminderItem): string {
     return `${type}:${item.context || ''}:${item.id}`;
 }
+export function exclusionReason(item: ReminderItem, now: number): string | null {
+    if (item.submitted) return 'TACT上で提出済み';
+    if (item.hasFinished) return '完了チェック済み';
+    if (!Number.isFinite(item.dueTime) || item.dueTime <= 0) return '締切を読み取れません';
+    if (item.dueTime <= now) return '締切を過ぎています';
+    if (item.dueTime > now + 7 * 86400) return '締切が7日より先です';
+    return null;
+}
 export function eligible(item: ReminderItem, now: number): boolean {
-    return Number.isFinite(item.dueTime) && item.dueTime > now && item.dueTime <= now + 7 * 86400
-        && !item.hasFinished && !item.submitted;
+    return exclusionReason(item, now) === null;
 }
 let queue: Promise<unknown> = Promise.resolve();
-export function syncReminders(data: { assignments?: ReminderItem[]; quizzes?: ReminderItem[] }, token: string,
+export function syncReminders(data: { assignments?: ReminderItem[]; quizzes?: ReminderItem[]; verifyExisting?: boolean }, token: string,
     accountId: string, store: ReminderStore = reminderStore, request: typeof fetch = fetch,
     now = Math.floor(Date.now() / 1000)): Promise<any> {
     const work = () => run(data, token, accountId, store, request, now);
@@ -34,12 +41,12 @@ export function syncReminders(data: { assignments?: ReminderItem[]; quizzes?: Re
     queue = next.catch(() => undefined);
     return next;
 }
-async function run(data: { assignments?: ReminderItem[]; quizzes?: ReminderItem[] }, token: string,
+async function run(data: { assignments?: ReminderItem[]; quizzes?: ReminderItem[]; verifyExisting?: boolean }, token: string,
     account: string, store: ReminderStore, request: typeof fetch, now: number) {
     if (!token || !account) throw new Error('Google認証が必要です');
     const storageKey = `tactReminderEvents:v1:${account}`;
     const records: Record<string, EventRecord> = await store.read(storageKey) || {};
-    const result: any = { assignments: [], quizzes: [], errors: [], deleted: 0, updated: 0 };
+    const result: any = { assignments: [], quizzes: [], errors: [], deleted: 0, updated: 0, eligible: 0, unchanged: 0, diagnostics: [] };
     const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
     const base = 'https://www.googleapis.com/calendar/v3/calendars/primary/events';
     const work = { assignments: [...(data.assignments || [])], quizzes: [...(data.quizzes || [])] };
@@ -57,6 +64,10 @@ async function run(data: { assignments?: ReminderItem[]; quizzes?: ReminderItem[
             const completion = await store.read(`tactCompletion:${key}`);
             const item = { ...original, hasFinished: completion === undefined ? original.hasFinished : completion };
             let record = records[key];
+            const reason = exclusionReason(item, now);
+            const diagnostic = { title: item.title, courseName: item.courseName || '', dueTime: item.dueTime, reason: reason || '同期対象' };
+            result.diagnostics.push(diagnostic);
+            if (!reason) result.eligible++;
             try {
                 if (!eligible(item, now)) {
                     if (record) {
@@ -78,7 +89,7 @@ async function run(data: { assignments?: ReminderItem[]; quizzes?: ReminderItem[
                     reminders: { useDefault: false, overrides: [{ method: 'popup', minutes: 60 }, { method: 'popup', minutes: 1440 }] }
                 };
                 const signature = JSON.stringify(body);
-                if (record?.ready && record.signature === signature) continue;
+                if (record?.ready && record.signature === signature && !data.verifyExisting) { result.unchanged++; diagnostic.reason = '登録済み（変更なし）'; continue; }
                 if (record?.ready) {
                     const response = await request(`${base}/${encodeURIComponent(record.eventId)}`, { method: 'PATCH', headers, body: signature });
                     if (response.status === 404 || response.status === 410) {

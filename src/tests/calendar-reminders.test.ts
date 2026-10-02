@@ -65,3 +65,20 @@ test('concurrent callers serialize and cannot create duplicates', async () => {
     await Promise.all([syncReminders({ assignments: [item] }, 't', 'a', store, request as any, now), syncReminders({ assignments: [item] }, 't', 'a', store, request as any, now)]);
     expect(request).toHaveBeenCalledTimes(1);
 });
+
+test('diagnostics explain excluded reminders instead of silently reporting zero', async () => {
+    const store = memory(), request = jest.fn(async () => response());
+    const result = await syncReminders({ assignments: [{ ...item, submitted: true }, { ...item, id: 'b', dueTime: now + 8 * 86400 }] }, 't', 'account', store, request as any, now);
+    expect(result.eligible).toBe(0);
+    expect(result.diagnostics.map((entry: any) => entry.reason)).toEqual(['TACT上で提出済み', '締切が7日より先です']);
+    expect(request).not.toHaveBeenCalled();
+});
+test('manual verification restores an event deleted in Google Calendar by its stored ID', async () => {
+    const store = memory();
+    await syncReminders({ assignments: [item] }, 't', 'account', store, (async () => response()) as any, now);
+    const request = jest.fn(async (_url: string, init?: RequestInit) => response(init?.method === 'PATCH' ? 404 : 200));
+    const result = await syncReminders({ assignments: [item], verifyExisting: true }, 't', 'account', store, request as any, now);
+    expect(request.mock.calls.map(call => call[1]?.method)).toEqual(['PATCH', 'POST']);
+    expect(result.assignments).toHaveLength(1);
+    expect(result.eligible).toBe(1);
+});

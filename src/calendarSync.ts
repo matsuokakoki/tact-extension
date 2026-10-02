@@ -60,7 +60,7 @@ export async function logoutGoogle(): Promise<void> {
 // Sync data to Google Calendar
 export async function syncToCalendar(assignments: any[], quizzes: any[], token?: string): Promise<SyncResult> {
   const response = await sendMessage('syncToCalendar', {
-    data: { assignments, quizzes },
+    data: { assignments, quizzes, verifyExisting: true },
     token
   });
   if (!response.result) {
@@ -172,6 +172,7 @@ export function createSyncModal(): HTMLElement {
           '<button id="refreshLastSyncBtn" class="cs-sync-btn cs-sync-btn-secondary">再取得</button>',
         '</div>',
         '<div class="cs-sync-status" id="syncStatus"></div>',
+        '<details id="syncDiagnostics" hidden><summary>取得件数・除外理由を確認</summary><pre id="syncDiagnosticText" style="white-space:pre-wrap;overflow-wrap:anywhere;font:13px/1.7 system-ui"></pre></details>',
       '</div>',
       '<div class="cs-sync-footer">',
         '<button class="cs-sync-btn cs-sync-btn-danger" id="clearSentBtn">旧版履歴クリア</button>',
@@ -392,25 +393,30 @@ async function performSync(modal: HTMLElement, forceSync: boolean = false) {
     // Get current site data
     const hostname = window.location.hostname;
     const courses = fetchCourse();
+    if (!courses.length) throw new Error('科目を取得できません。対象の授業ページを開いて、再度同期してください。');
+    const fetchFailures: string[] = [];
+    const reportFailures = (failures: string[]) => fetchFailures.push(...failures);
     let assignments: any[] = [];
     let quizzes: any[] = [];
 
     if (syncAssignments) {
       try {
-        assignments = await getAssignments(hostname, courses, false);
+        assignments = await getAssignments(hostname, courses, false, reportFailures);
         const allEntries = assignments.flatMap(assignment => assignment.entries);
         showSyncStatus(modal, `課題データを取得しました (${allEntries.length}件)`, 'info');
       } catch (error) {
+        fetchFailures.push(String(error));
         logger.error('Failed to get assignments:', error);
       }
     }
 
     if (syncQuizzes) {
       try {
-        quizzes = await getQuizzes(hostname, courses, false);
+        quizzes = await getQuizzes(hostname, courses, false, reportFailures);
         const allEntries = quizzes.flatMap(quiz => quiz.entries);
         showSyncStatus(modal, `クイズデータを取得しました (${allEntries.length}件)`, 'info');
       } catch (error) {
+        fetchFailures.push(String(error));
         logger.error('Failed to get quizzes:', error);
       }
     }
@@ -429,7 +435,21 @@ async function performSync(modal: HTMLElement, forceSync: boolean = false) {
     // Perform calendar sync
     showSyncStatus(modal, 'Googleカレンダーに同期中...', 'info');
 
+    if (fetchFailures.length && !totalAssignmentEntries.length && !totalQuizEntries.length) throw new Error(fetchFailures.join(' / '));
     const result = await syncToCalendar(totalAssignmentEntries, totalQuizEntries, token);
+    const diagnosticPanel = modal.querySelector('#syncDiagnostics') as HTMLDetailsElement;
+    const diagnosticText = modal.querySelector('#syncDiagnosticText') as HTMLElement;
+    if (diagnosticPanel && diagnosticText) {
+      diagnosticPanel.hidden = false;
+      diagnosticPanel.open = !(result as any).eligible || !!fetchFailures.length;
+      const diagnostics = (result as any).diagnostics || [];
+      diagnosticText.textContent = [
+        `科目: ${courses.length}件 / 取得: 課題${totalAssignmentEntries.length}件・クイズ${totalQuizEntries.length}件 / 同期対象: ${(result as any).eligible || 0}件`,
+        ...diagnostics.map((item: any) => `${item.courseName} / ${item.title} / 締切: ${Number.isFinite(item.dueTime) && item.dueTime > 0 ? new Date(item.dueTime * 1000).toLocaleString('ja-JP') : '不明'} / ${item.reason}`),
+        ...fetchFailures.map(message => '取得失敗: ' + message),
+        ...result.errors.map(error => `${error.title}: ${error.error}`)
+      ].join('\n');
+    }
 
     // Show results
     const totalSuccess = result.assignments.length + result.quizzes.length;
@@ -440,9 +460,9 @@ async function performSync(modal: HTMLElement, forceSync: boolean = false) {
       const lastSyncTimeLabel = modal.querySelector('#lastSyncTimeLabel') as HTMLElement;
       if (lastSyncTimeLabel) lastSyncTimeLabel.textContent = '最終同期: ' + formatDateTime(Date.now());
     }
-    const totalErrors = result.errors.length;
+    const totalErrors = result.errors.length + fetchFailures.length;
     if (totalErrors === 0) {
-      showSyncStatus(modal, `✅ 同期完了: ${totalSuccess}件追加・${(result as any).updated || 0}件更新・${(result as any).deleted || 0}件削除`, 'success');
+      showSyncStatus(modal, `✅ 同期完了: ${totalSuccess}件追加・${(result as any).updated || 0}件更新・${(result as any).deleted || 0}件削除（取得${totalAssignmentEntries.length + totalQuizEntries.length}件・対象${(result as any).eligible || 0}件）`, 'success');
     } else {
       showSyncStatus(modal, `⚠️ 同期完了: ${totalSuccess}件成功, ${totalErrors}件失敗`, 'error');
       logger.debug('Sync errors:', result.errors);
@@ -534,8 +554,7 @@ export function showSyncModal() {
   // 再取得ボタンのイベント
   const refreshBtn = modal.querySelector('#refreshLastSyncBtn');
   refreshBtn?.addEventListener('click', async () => {
-    const ts = await getLastSyncTime();
-    lastSyncTimeLabel.textContent = '最終同期: ' + formatDateTime(ts);
+    await performSync(modal, true);
   });
 
   // ストレージ変更監視（C2: 名前付き関数で保持し、モーダル削除時に必ず removeListener する）

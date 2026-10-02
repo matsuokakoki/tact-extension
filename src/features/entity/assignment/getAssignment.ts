@@ -14,7 +14,7 @@ import { AssignmentFetchTimeStorage, AssignmentsStorage } from "../../../constan
  * @param useCache - Whether to use browser cache for fetch requests.
  * @returns {Promise<Array<Assignment>>}
  */
-const getSakaiAssignments = async (hostname: string, courses: Array<Course>, useCache: boolean = false): Promise<Array<Assignment>> => {
+const getSakaiAssignments = async (hostname: string, courses: Array<Course>, useCache: boolean = false, reportFailures?: (failures: string[]) => void): Promise<Array<Assignment>> => {
     const assignments: Array<Assignment> = [];
     const pending: Array<Promise<Assignment>> = [];
     for (const course of courses) {
@@ -24,6 +24,9 @@ const getSakaiAssignments = async (hostname: string, courses: Array<Course>, use
     for (const assignment of result) {
         if (assignment.status === "fulfilled") assignments.push(assignment.value);
     }
+    const failures = result.flatMap((entry: any, index: number) => entry.status === 'rejected' ? [`${courses[index].name}: ${String(entry.reason)}`] : []);
+    if (failures.length) reportFailures?.(failures);
+    if (courses.length && failures.length === courses.length) throw new Error('TACTからの取得に失敗しました: ' + failures.join(' / '));
     await toStorage(hostname, AssignmentFetchTimeStorage, new Date().getTime() / 1000);
     return assignments;
 };
@@ -49,14 +52,15 @@ const getStoredAssignments = (hostname: string): Promise<Array<Assignment>> => {
 export const getAssignments = async (
     hostname: string,
     courses: Array<Course>,
-    useCache: boolean
+    useCache: boolean,
+    reportFailures?: (failures: string[]) => void
 ): Promise<Array<Assignment>> => {
     const storedAssignments = await getStoredAssignments(hostname);
     if (useCache) {
         await applyCompletion(storedAssignments);
         return storedAssignments;
     }
-    const sakaiAssignments = await getSakaiAssignments(hostname, courses, useCache);
+    const sakaiAssignments = await getSakaiAssignments(hostname, courses, useCache, reportFailures);
     const merged = mergeEntities<Assignment>(storedAssignments, sakaiAssignments);
     await applyCompletion(merged);
     await toStorage(hostname, AssignmentsStorage, merged);

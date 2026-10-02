@@ -159,6 +159,7 @@ async function performAutoSync() {
 interface SyncData {
     assignments: EntryProtocol[];
     quizzes: EntryProtocol[];
+    fetchErrors?: string[];
 }
 
 // Sakai LMSからの課題・クイズデータを同期のために取得
@@ -171,8 +172,22 @@ async function getSakaiDataForSync(): Promise<SyncData> {
     // キャッシュ利用判定
     const useAssignmentCache = shouldUseCache(fetchTime.assignment, now, settings.cacheInterval.assignment);
     const useQuizCache = shouldUseCache(fetchTime.quiz, now, settings.cacheInterval.quiz);
-    const assignments = await getAssignments(hostname, courses, useAssignmentCache);
-    const quizzes = await getQuizzes(hostname, courses, useQuizCache);
+    if (!courses.length) throw new Error('科目を取得できません。対象の授業ページを開いて再試行してください。');
+    const choices = await new Promise<any>((resolve, reject) => chrome.storage.local.get(['tactReminderAssignments', 'tactReminderQuizzes'], result => {
+        if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message)); else resolve(result);
+    }));
+    const fetchErrors: string[] = [];
+    const reportFailures = (failures: string[]) => fetchErrors.push(...failures);
+    // Disabled quiz fetching must not prevent assignment synchronization.
+    let assignments: EntityProtocol[] = [], quizzes: EntityProtocol[] = [];
+    if (choices.tactReminderAssignments !== false) {
+        try { assignments = await getAssignments(hostname, courses, useAssignmentCache, reportFailures); }
+        catch (error) { fetchErrors.push(String(error)); }
+    }
+    if (choices.tactReminderQuizzes === true) {
+        try { quizzes = await getQuizzes(hostname, courses, useQuizCache, reportFailures); }
+        catch (error) { fetchErrors.push(String(error)); }
+    }
     // 締切が今より前のものは除外
     // エントリにコース情報を付与してフラット化
     const totalAssignmentEntries = assignments.flatMap((assignment: EntityProtocol) =>
@@ -183,12 +198,10 @@ async function getSakaiDataForSync(): Promise<SyncData> {
         quiz.entries
             .map((e: any) => ({ ...e, courseName: quiz.course.name, context: quiz.course.id }))
     );
-    const choices = await new Promise<any>((resolve, reject) => chrome.storage.local.get(['tactReminderAssignments', 'tactReminderQuizzes'], result => {
-        if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message)); else resolve(result);
-    }));
     return {
         assignments: choices.tactReminderAssignments === false ? [] : totalAssignmentEntries,
         quizzes: choices.tactReminderQuizzes === true ? totalQuizEntries : [],
+        fetchErrors: Array.from(new Set(fetchErrors)),
     };
 }
 
