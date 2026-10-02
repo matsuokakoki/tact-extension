@@ -1,0 +1,77 @@
+{
+  "name": "tact-extension",
+  "version": "3.2.0",
+  "description": "Personal TACT extension: incremental course downloads, completion-aware Calendar reminders, and ChatGPT attachments",
+  "main": "index.ts",
+  "scripts": {
+    "test": "jest",
+    "build:chrome": "node tasks/build-chrome.cjs",
+    "build:firefox": "NODE_ENV=production webpack --config tasks/webpack.config.firefox.js && node tasks/release firefox",
+    "build:safari": "NODE_ENV=production webpack --config tasks/webpack.config.safari.js && node tasks/release safari",
+    "build:edge": "NODE_ENV=production webpack --config tasks/webpack.config.edge.js && node tasks/release edge",
+    "convert:safari": "NODE_ENV=production npm run build:safari && xcrun safari-web-extension-converter dist/source/safari --project-location dist/source/safari-proj --app-name \"Comfortable-NU\" --bundle-identifier \"com.das08.ComfortableNU.Safari\" --force\n",
+    "build:all": "npm run build:chrome && npm run build:firefox && npm run build:safari && npm run build:edge",
+    "configure:google": "node tasks/configure-google.cjs",
+    "typecheck": "tsc --noEmit",
+    "test:browser": "node tasks/browser-test.cjs"
+  },
+  "author": "Kazuki Takeda, Shoji Kajita(Kyoto University), rozwer(Nagoya University)",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@types/chrome": "^0.0.178",
+    "@types/jszip": "^3.4.0",
+    "archiver": "^5.3.0",
+    "copy-webpack-plugin": "^10.2.4",
+    "jszip": "^3.10.1",
+    "lodash": "^4.17.21",
+    "mustache": "^4.2.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "ts-loader": "^9.2.6",
+    "uuid": "^8.3.2",
+    "webpack": "^5.70.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^27.4.0",
+    "@types/lodash": "^4.14.178",
+    "@types/react": "^18.0.6",
+    "@types/react-dom": "^18.0.2",
+    "@types/uuid": "^8.3.4",
+    "@typescript-eslint/eslint-plugin": "^5.30.0",
+    "clean-webpack-plugin": "^4.0.0",
+    "eslint": "^8.18.0",
+    "eslint-config-prettier": "^8.3.0",
+    "eslint-plugin-prettier": "^4.0.0",
+    "eslint-plugin-react": "^7.29.4",
+    "eslint-plugin-react-hooks": "^4.5.0",
+    "jest": "^27.5.1",
+    "jest-fetch-mock": "^3.0.3",
+    "prettier": "^2.5.1",
+    "terser-webpack-plugin": "^5.3.1",
+    "ts-jest": "^27.1.3",
+    "typescript": "^4.7.4",
+    "webpack-cli": "^4.9.1"
+  },
+  "jest": {
+    "automock": false,
+    "setupFiles": [
+      "./src/tests/setupJest.js"
+    ],
+    "moduleFileExtensions": [
+      "js",
+      "ts"
+    ],
+    "transform": {
+      "^.+\\.ts$": "ts-jest"
+    },
+    "globals": {
+      "ts-jest": {
+        "tsconfig": "tsconfig.json"
+      }
+    },
+    "testMatch": [
+      "**/tests/**/*.test.ts"
+    ],
+    "preset": "ts-jest"
+  }
+}

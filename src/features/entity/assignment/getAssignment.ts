@@ -1,0 +1,73 @@
+import { reminderStore, reminderKey } from '../../calendar/reminders';
+import { Assignment } from "./types";
+import { decodeAssignmentFromArray } from "./decode";
+import { Course } from "../../course/types";
+import { fetchAssignment } from "../../api/fetch";
+import { toStorage, fromStorage } from "../../storage";
+import { mergeEntities } from "../../merge";
+import { AssignmentFetchTimeStorage, AssignmentsStorage } from "../../../constant";
+
+/**
+ * Get Assignments from Sakai REST API.
+ * @param hostname - A PRIMARY key for storage. Usually a hostname of Sakai LMS.
+ * @param courses - List of Course sites.
+ * @param useCache - Whether to use browser cache for fetch requests.
+ * @returns {Promise<Array<Assignment>>}
+ */
+const getSakaiAssignments = async (hostname: string, courses: Array<Course>, useCache: boolean = false): Promise<Array<Assignment>> => {
+    const assignments: Array<Assignment> = [];
+    const pending: Array<Promise<Assignment>> = [];
+    for (const course of courses) {
+        pending.push(fetchAssignment(course, useCache));
+    }
+    const result = await (Promise as any).allSettled(pending);
+    for (const assignment of result) {
+        if (assignment.status === "fulfilled") assignments.push(assignment.value);
+    }
+    await toStorage(hostname, AssignmentFetchTimeStorage, new Date().getTime() / 1000);
+    return assignments;
+};
+
+/**
+ * Get Assignments from Storage.
+ * @param hostname - A PRIMARY key for storage. Usually a hostname of Sakai LMS.
+ * @returns {Promise<Array<Assignment>>}
+ */
+const getStoredAssignments = (hostname: string): Promise<Array<Assignment>> => {
+    return fromStorage<Array<Assignment>>(hostname, AssignmentsStorage, decodeAssignmentFromArray);
+};
+
+/**
+ * Get Assignments according to cache flag.
+ * If cache flag is true, this returns Assignments from Storage.
+ * Otherwise, returns Assignments from Sakai REST API.
+ * @param hostname - A PRIMARY key for storage. Usually a hostname of Sakai LMS.
+ * @param courses - List of Course sites.
+ * @param useCache - A flag to use cache.
+ * @returns {Promise<Array<Assignment>>}
+ */
+export const getAssignments = async (
+    hostname: string,
+    courses: Array<Course>,
+    useCache: boolean
+): Promise<Array<Assignment>> => {
+    const storedAssignments = await getStoredAssignments(hostname);
+    if (useCache) {
+        await applyCompletion(storedAssignments);
+        return storedAssignments;
+    }
+    const sakaiAssignments = await getSakaiAssignments(hostname, courses, useCache);
+    const merged = mergeEntities<Assignment>(storedAssignments, sakaiAssignments);
+    await applyCompletion(merged);
+    await toStorage(hostname, AssignmentsStorage, merged);
+    return merged;
+};
+
+async function applyCompletion(assignments: Assignment[]): Promise<void> {
+    for (const assignment of assignments) {
+        for (const entry of assignment.entries) {
+            const completed = await reminderStore.read(`tactCompletion:${reminderKey('assignment', { ...entry, context: assignment.course.id })}`);
+            if (typeof completed === 'boolean') entry.hasFinished = completed;
+        }
+    }
+}

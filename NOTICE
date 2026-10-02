@@ -1,0 +1,14 @@
+TACT Extension (personal customization)
+Based on Comfortable NU, Apache License 2.0.
+Original project: https://github.com/rozwer/comfortable-NU
+Base commit: 79f65b651f92584ac25445f9c62f2a854deeff2e
+Original authors: Kazuki Takeda, Shoji Kajita, rozwer.
+
+2026-10-02 modifications: course-specific incremental file downloads and
+permission recovery, completion-aware Calendar reminder creation/update/deletion,
+and a ChatGPT file-attachment / prompt-preparation adapter.
+
+The ChatGPT DOM interaction approach references RightClickGPT:
+https://github.com/eimexdev/RightClickGPT (Apache-2.0).
+The adapter is independently implemented, does not embed the extension,
+and never automatically submits a ChatGPT prompt.

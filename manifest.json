@@ -1,0 +1,102 @@
+{
+  "name": "TACT Extension (Koki)",
+  "description": "__MSG_EXTENSION_DESCRIPTION__",
+  "version": "3.1.0",
+  "manifest_version": 3,
+  "default_locale": "en",
+  "icons": {
+    "16": "img/icon16.png",
+    "48": "img/icon48.png",
+    "128": "img/icon128.png"
+  },
+  "action": {
+    "default_title": "Comfortable NU",
+    "default_popup": "subsakai.html"
+  },
+  "content_scripts": [
+    {
+      "js": [
+        "content_script.js"
+      ],
+      "css": [
+        "css/comfortable-sakai.css",
+        "css/tact-extension.css",
+        "css/date-picker.css",
+        "css/calendar-sync.css",
+        "css/material-dialog.css",
+        "css/submitted-styles.css",
+        "css/submission-tracker.css"
+      ],
+      "matches": [
+        "https://tact.ac.thers.ac.jp/*",
+        "https://nuss.nagoya-u.ac.jp/*"
+      ]
+    },
+    {
+      "matches": [
+        "https://chatgpt.com/*"
+      ],
+      "js": [
+        "chatgptBridge.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://tact.ac.thers.ac.jp/*"
+      ],
+      "js": [
+        "materialLinks.js"
+      ],
+      "all_frames": true,
+      "run_at": "document_idle"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": [
+    "storage",
+    "identity",
+    "alarms",
+    "notifications",
+    "tabs"
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://www.googleapis.com https://accounts.google.com https://tact.ac.thers.ac.jp; frame-src 'none';"
+  },
+  "host_permissions": [
+    "https://tact.ac.thers.ac.jp/*",
+    "https://www.googleapis.com/*",
+    "https://nuss.nagoya-u.ac.jp/*",
+    "https://chatgpt.com/*"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "css/comfortable-sakai.css",
+        "css/tact-extension.css",
+        "css/date-picker.css",
+        "css/calendar-sync.css",
+        "css/memo-styles.css",
+        "css/folder-styles.css",
+        "css/material-dialog.css",
+        "css/submitted-styles.css",
+        "css/submission-tracker.css",
+        "img/logo.png",
+        "img/noAssignment.png",
+        "img/miniSakaiBtn.png",
+        "img/closeBtn.svg",
+        "img/scheduleBtn.svg",
+        "img/favoriteBtn.svg",
+        "img/trackerBtn.svg",
+        "img/folderBtn.svg"
+      ],
+      "matches": [
+        "https://tact.ac.thers.ac.jp/*",
+        "https://nuss.nagoya-u.ac.jp/*"
+      ]
+    }
+  ],
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAkNYkoGY8A4NBNAQl2GBfQj2ggj9R57s9FGOG8MmQTCx+6Ps9tsmKI/NrTrXpaDPCuMYfShV1jom8V9V+WnxiR3fhWK2s15N/ZzPJW5iJQYEQSdgBjaH0dNic8F3udBZDcZpmidzNm5iXLTLJ4q0e7S7wStwyXDi0FKaady2VToIiy6pqO47/6Ocjmsz69vKNH+3zjPjxFsJiIzbkIF3QphQv8qQuX9fxhZxp95KJdfLDgiorv87oxZENbsvZOJOAJ05i7T38ZKpRWyhjAC3+32wh57fGqWzF6E7pcCZZ5PtO7IPrt01xrhUiNJgzIZfZ7UTwdLcKMM2TGlinZxyCXwIDAQAB"
+}

@@ -1,0 +1,69 @@
+/**
+ * Google Calendarとの同期機能用型定義
+ * 課題・クイズデータのカレンダー同期に関するインターフェース
+ */
+/**
+ * Google Calendar同期機能の型定義
+ * カレンダー同期に関するインターフェースとデータ型
+ */
+// Type definitions for Google Calendar sync functionality
+
+export interface GoogleAccount {
+  id: string;
+  email: string;
+  name: string;
+  picture: string;
+  verified_email?: boolean;
+}
+
+export interface SyncResult {
+  assignments: SyncItem[];
+  quizzes: SyncItem[];
+  errors: SyncError[];
+}
+
+export interface SyncItem {
+  title: string;
+  success: boolean;
+  eventId?: string;
+}
+
+export interface SyncError {
+  type: 'assignment' | 'quiz';
+  title: string;
+  error: string;
+}
+
+export interface CalendarEvent {
+  summary: string;
+  description: string;
+  start: {
+    dateTime: string;
+    timeZone: string;
+  };
+  end: {
+    dateTime: string;
+    timeZone: string;
+  };
+  reminders: {
+    useDefault: boolean;
+    overrides: Array<{
+      method: string;
+      minutes: number;
+    }>;
+  };
+}
+
+export interface ChromeMessage {
+  action: string;
+  data?: any;
+  token?: string;
+}
+
+export interface ChromeResponse {
+  success: boolean;
+  token?: string;
+  accounts?: GoogleAccount[];
+  result?: SyncResult;
+  error?: string;
+}

@@ -1,0 +1,187 @@
+import { fetchCourse } from './features/api/fetch';
+/**
+ * -----------------------------------------------------------------
+ * Modified by: roz
+ * Date       : 2025-05-28
+ * Changes    : 時間割ボタンとカレンダー同期ボタンをヘッダーに追加
+ * Category   : UI機能拡張
+ * -----------------------------------------------------------------
+ */
+// filepath: /home/rozwer/sakai/comfortable-sakai/src/minisakai.tsx
+import React from "react";
+import { createRoot } from "react-dom/client";
+import { MiniSakaiRoot } from "./components/main";
+import { Settings } from "./features/setting/types";
+
+
+/**
+ * Toggle state for miniSakai
+ */
+let toggle = false;
+
+/**
+ * Change visibility of miniSakai.
+ */
+export const toggleMiniSakai = (): void => {
+    if (toggle) {
+        // Hide miniSakai
+        miniSakai.classList.remove("cs-show");
+        miniSakai.classList.add("cs-hide");
+        document.getElementById("cs-cover")?.remove();
+    } else {
+        // Display miniSakai
+        miniSakai.classList.remove("cs-hide");
+        miniSakai.classList.add("cs-show");
+        const cover = document.createElement("div");
+        cover.id = "cs-cover";
+        document.getElementsByTagName("body")[0].appendChild(cover);
+        cover.onclick = toggleMiniSakai;
+    }
+    toggle = !toggle;
+    if (toggle) chrome.runtime.sendMessage({ action: 'performCalendarSync' }, () => { void chrome.runtime.lastError; });
+};
+
+export const miniSakai = document.createElement("div");
+miniSakai.id = "miniSakai";
+miniSakai.classList.add("cs-minisakai", "cs-tab");
+
+const materialsButton = document.createElement('button');
+materialsButton.className = 'cs-header-btn';
+materialsButton.textContent = '資料を取得';
+materialsButton.style.cssText = 'font-size:13px;font-weight:600;white-space:nowrap';
+materialsButton.title = '科目ごとに保存先を記憶し、新規・更新資料だけ取得';
+materialsButton.addEventListener('click', () => {
+    const courses = [...fetchCourse()];
+    const match = location.pathname.match(/\/portal\/site(?:-[a-z]+)?\/([^/]+)/);
+    const courseId = match ? decodeURIComponent(match[1]) : '';
+    if (courseId && !courses.some(course => course.id === courseId)) {
+        courses.push({ id: courseId, name: document.title, link: location.href });
+    }
+    chrome.runtime.sendMessage({ action: 'openMaterials', courses, courseId }, response => {
+        if (chrome.runtime.lastError || !response?.success) alert(chrome.runtime.lastError?.message || response?.error || '資料画面を開けませんでした');
+    });
+});
+
+export const hamburger = document.createElement("button");
+hamburger.className = "cs-loading";
+hamburger.addEventListener("click", toggleMiniSakai);
+
+/**
+ * -----------------------------------------------------------------
+ * Modified by: roz
+ * Date       : 2025-05-28
+ * Changes    : 時間割表示ボタンを追加（TACTポータル用）
+ * Category   : UI機能拡張
+ * -----------------------------------------------------------------
+ */
+// 時間割ボタンの作成
+export const scheduleButton = document.createElement("button");
+scheduleButton.className = "cs-header-btn cs-schedule-btn";
+scheduleButton.innerHTML = `<img src="${chrome.runtime.getURL("img/scheduleBtn.svg")}" alt="schedule">`;
+scheduleButton.addEventListener("click", () => {
+    // 時間割タブを表示
+    import("./features/tact/timetable").then(({ showTimetableModal }) => {
+        showTimetableModal();
+    });
+});
+
+/**
+ * -----------------------------------------------------------------
+ * Modified by: roz
+ * Date       : 2025-05-28
+ * Changes    : カレンダー同期ボタンを追加（Googleカレンダー連携用）
+ * Category   : UI機能拡張
+ * -----------------------------------------------------------------
+ */
+// お気に入りボタンの作成
+export const favoriteButton = document.createElement("button");
+favoriteButton.className = "cs-header-btn cs-favorite-btn";
+favoriteButton.innerHTML = `<img src="${chrome.runtime.getURL("img/favoriteBtn.svg")}" alt="sync">`;
+favoriteButton.addEventListener("click", () => {
+    // Googleカレンダー同期モーダルを表示
+    import("./calendarSync").then(({ showSyncModal }) => {
+        showSyncModal();
+    });
+});
+
+/**
+ * -----------------------------------------------------------------
+ * Modified by: roz
+ * Date       : 2026-03-15
+ * Changes    : 提出率トラッカーボタンを追加
+ * Category   : UI機能拡張
+ * -----------------------------------------------------------------
+ */
+// 提出率トラッカーボタンの作成
+export const submissionTrackerButton = document.createElement("button");
+submissionTrackerButton.className = "cs-header-btn cs-submission-tracker-btn";
+submissionTrackerButton.title = "提出率";
+submissionTrackerButton.innerHTML = `<img src="${chrome.runtime.getURL("img/trackerBtn.svg")}" alt="tracker">`;
+submissionTrackerButton.addEventListener("click", () => {
+    import("./features/submissionTracker").then(({ showSubmissionTrackerModal }) => {
+        showSubmissionTrackerModal();
+    });
+});
+
+
+/**
+ * Add a button to open miniSakai.
+ */
+export function addMiniSakaiBtn(): void {
+    const topbar = document.getElementById("mastLogin")
+        || document.querySelector(".Mrphs-headerLogo")
+        || document.querySelector("nav.Mrphs-topHeader");
+    if (!topbar) return;
+    try {
+        /**
+         * -----------------------------------------------------------------
+         * Modified by: roz
+         * Date       : 2025-05-28
+         * Changes    : 新しいボタン（カレンダー同期・時間割）をヘッダーに追加
+         * Category   : UI機能拡張
+         * -----------------------------------------------------------------
+         */
+        // 二重挿入防止: すでにDOMに存在する場合はスキップ
+        if (!topbar.contains(materialsButton)) topbar.appendChild(materialsButton);
+        if (!topbar.contains(favoriteButton)) topbar.appendChild(favoriteButton);
+        if (!topbar.contains(scheduleButton)) topbar.appendChild(scheduleButton);
+        if (!topbar.contains(submissionTrackerButton)) topbar.appendChild(submissionTrackerButton);
+        if (!topbar.contains(hamburger)) topbar.appendChild(hamburger);
+    } catch (e) {
+        console.log("could not launch miniSakai.");
+    }
+}
+
+/**
+ * Insert miniSakai into Sakai LMS.
+ * @param hostname - A PRIMARY key for storage. Usually a hostname of Sakai LMS.
+ */
+export function createMiniSakai(hostname: string) {
+    const parent = document.getElementsByClassName("Mrphs-mainHeader")[0];
+    const ref = document.getElementsByClassName("Mrphs-sites-nav")[0];
+    parent?.insertBefore(miniSakai, ref);
+    const root = createRoot(miniSakai);
+    root.render(<MiniSakaiRoot subset={false} hostname={hostname} />);
+}
+
+/**
+ * Sets color theme to CSS custom property.
+ * @param settings - Settings for miniSakai.
+ * @param isSubSakai - SubSakai or not.
+ */
+export const applyColorSettings = (settings: Settings, isSubSakai: boolean): void => {
+    let bodyStyles: HTMLElement;
+    if (!isSubSakai) {
+        bodyStyles = document.querySelector(".Mrphs-mainHeader") as HTMLElement;
+    } else {
+        bodyStyles = document.querySelector("#subSakai") as HTMLElement;
+    }
+    for (const colorName of Object.getOwnPropertyNames(settings.color)) {
+        // @ts-ignore
+        const color = settings.color[colorName];
+        bodyStyles.style.setProperty(`--${colorName}`, color);
+    }
+    bodyStyles.style.setProperty("--textColor", settings.getTextColor());
+    bodyStyles.style.setProperty("--bgColor", settings.getBgColor());
+    bodyStyles.style.setProperty("--dateColor", settings.getDateColor());
+};
