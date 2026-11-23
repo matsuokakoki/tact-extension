@@ -2,6 +2,7 @@ export interface Resource {
     id?: string; resourceId?: string; title?: string; name?: string; type?: string;
     container?: string; url?: string; modifiedTime?: unknown; modifiedDate?: unknown; modified?: unknown; createdTime?: unknown; size?: unknown; mimeType?: string; webLinkUrl?: string; hidden?: boolean; isVisible?: boolean; resourceChildren?: Resource[];
 }
+export type SaveLayout = 'folders' | 'flat';
 export interface DownloadFile { id: string; url: string; path: string[]; fingerprint: string; }
 export interface Receipt { fingerprint: string; path: string; }
 function hash(value: string): string {
@@ -19,7 +20,7 @@ export function isFolder(item: Resource): boolean {
     return item.type === 'collection' || item.type === 'folder' || !!item.type?.endsWith('.folder') || !!item.resourceId?.endsWith('/');
 }
 function decode(value: string): string { try { return decodeURIComponent(value); } catch { return value; } }
-export function planFiles(items: Resource[], courseId: string): { files: DownloadFile[]; skipped: number } {
+export function planFiles(items: Resource[], courseId: string, layout: SaveLayout = 'folders'): { files: DownloadFile[]; skipped: number } {
     const files: DownloadFile[] = [];
     let skipped = 0;
     const directoryLabels = new Map<string, string>();
@@ -71,6 +72,7 @@ export function planFiles(items: Resource[], courseId: string): { files: Downloa
         let filename = item.title || item.name || decode(url.pathname.split('/').pop() || 'file');
         const extension = decode(url.pathname.split('/').pop() || '').match(/\.[a-zA-Z0-9]{1,8}$/)?.[0];
         if (extension && !filename.toLowerCase().endsWith(extension.toLowerCase())) filename += extension;
+        if (layout === 'flat') path.length = 0;
         path.push(safeSegment(filename));
         const planned = { id, url: url.href, path, fingerprint: '' };
         files.push(planned);

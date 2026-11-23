@@ -60,3 +60,17 @@ test('case-colliding folder display names remain separate', () => {
     ], 'c');
     expect(files[0].path[0].toLowerCase()).not.toEqual(files[1].path[0].toLowerCase());
 });
+test('flat layout saves files together and distinguishes duplicate names across folders', () => {
+    const other = { ...file, id: '/group/c/week2/a.pdf', container: '/group/c/week2/' };
+    const paths = (items: any[]) => Object.fromEntries(planFiles(items, 'c', 'flat').files.map(item => [item.id, item.path]));
+    const result = paths([file, other]);
+    expect(result).toEqual(paths([other, file]));
+    expect(Object.values(result).every((path: any) => path.length === 1)).toBe(true);
+    expect(new Set(Object.values(result).map((path: any) => path[0].toLowerCase())).size).toBe(2);
+});
+test('changing layout downloads files to their new paths', () => {
+    const folders = planFiles([file], 'c').files[0];
+    const flat = planFiles([file], 'c', 'flat').files[0];
+    expect(flat.path).toEqual(['a.pdf']);
+    expect(needsDownload(flat, { fingerprint: folders.fingerprint, path: folders.path.join('/') })).toBe(true);
+});

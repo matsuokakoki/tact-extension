@@ -1,5 +1,5 @@
 import { DEFAULT_MATERIAL_PROMPT, resolveMaterialPrompt, sendMaterialToChatGPT } from './features/chatgpt';
-import { planFiles, needsDownload, Resource, flattenResources } from './features/materialDownload/plan';
+import { planFiles, needsDownload, Resource, flattenResources, SaveLayout } from './features/materialDownload/plan';
 import { CourseDownloadState, DirectoryHandle, readCourse, writeCourse } from './features/materialDownload/storage';
 const promptBox = document.querySelector('#prompt') as HTMLTextAreaElement;
 const resourcesList = document.querySelector('#resources') as HTMLElement;
@@ -7,6 +7,7 @@ promptBox.value = DEFAULT_MATERIAL_PROMPT;
 chrome.storage.local.get('tactMaterialPrompt', data => { promptBox.value = resolveMaterialPrompt(data.tactMaterialPrompt); });
 promptBox.addEventListener('change', () => chrome.storage.local.set({ tactMaterialPrompt: promptBox.value }));
 const select = document.querySelector('#course') as HTMLSelectElement;
+const layout = document.querySelector('#layout') as HTMLSelectElement;
 const choose = document.querySelector('#choose') as HTMLButtonElement;
 const grant = document.querySelector('#grant') as HTMLButtonElement;
 const download = document.querySelector('#download') as HTMLButtonElement;
@@ -19,7 +20,7 @@ let busy = false;
 function report(error: unknown) { status.textContent = error instanceof Error ? error.message : String(error); }
 function controls(value: boolean) {
     busy = value;
-    select.disabled = choose.disabled = grant.disabled = value;
+    select.disabled = layout.disabled = choose.disabled = grant.disabled = value;
     download.disabled = value || !state.handle || loadedCourse !== select.value;
 }
 async function load() {
@@ -27,6 +28,7 @@ async function load() {
     try {
         state = await readCourse(select.value);
         loadedCourse = select.value;
+        layout.value = state.layout || 'folders';
         destination.textContent = state.handle ? `保存先: ${state.handle.name}（このフォルダ直下へ保存）` : '保存先未設定: OneDrive内の「授業資料」フォルダなどを選んでください。';
         status.textContent = state.lastDownload ? `前回取得: ${new Date(state.lastDownload).toLocaleString('ja-JP')}` : '初回は全資料、次回からは新規・更新分のみを取得します。';
         grant.hidden = !state.handle;
@@ -35,6 +37,20 @@ async function load() {
     finally { controls(false); }
 }
 select.addEventListener('change', () => { details.replaceChildren(); void load(); });
+layout.addEventListener('change', async () => {
+    controls(true);
+    const courseId = select.value;
+    const selected = layout.value as SaveLayout;
+    try {
+        await (navigator as any).locks.request(`tact-download:${courseId}`, async () => {
+            state = await readCourse(courseId);
+            state.layout = selected;
+            await writeCourse(courseId, state);
+        });
+        await listResources(courseId);
+    } catch (error) { report(error); }
+    finally { controls(false); }
+});
 choose.addEventListener('click', async () => {
     if (busy) return;
     const picker = (window as any).showDirectoryPicker;
@@ -44,7 +60,7 @@ choose.addEventListener('click', async () => {
     controls(true);
     try {
         const handle: DirectoryHandle = await selection;
-        state = { handle, receipts: {} }; // Different destination needs a full first download.
+        state = { handle, layout: state.layout, receipts: {} }; // Different destination needs a full first download.
         await writeCourse(select.value, state);
         await load();
     } catch (error) { report(error); }
@@ -69,7 +85,7 @@ async function fetchResources(courseId: string): Promise<Resource[]> {
 async function listResources(courseId: string) {
     resourcesList.replaceChildren();
     try {
-        const { files } = planFiles(await fetchResources(courseId), courseId);
+        const { files } = planFiles(await fetchResources(courseId), courseId, state.layout || 'folders');
         for (const file of files) {
             const row = document.createElement('li');
             const title = document.createElement('a'); title.href = file.url; title.textContent = file.path.join('/'); title.target = '_blank'; title.rel = 'noopener';
@@ -103,7 +119,7 @@ download.addEventListener('click', async () => {
             state = await readCourse(courseId);
             const handle = state.handle!;
             status.textContent = '資料一覧を取得中…';
-            const { files, skipped } = planFiles(await fetchResources(courseId), courseId);
+            const { files, skipped } = planFiles(await fetchResources(courseId), courseId, state.layout || 'folders');
             let added = 0, updated = 0, unchanged = 0, failed = 0;
             for (const file of files) {
                 if (!needsDownload(file, state.receipts[file.id])) { unchanged++; continue; }

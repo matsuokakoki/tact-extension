@@ -1,4 +1,4 @@
-import { Receipt } from './plan';
+import { Receipt, SaveLayout } from './plan';
 export interface DirectoryHandle {
     name: string;
     queryPermission(options: { mode: 'readwrite' }): Promise<string>;
@@ -6,7 +6,7 @@ export interface DirectoryHandle {
     getDirectoryHandle(name: string, options: { create: boolean }): Promise<DirectoryHandle>;
     getFileHandle(name: string, options: { create: boolean }): Promise<{ createWritable(): Promise<{ write(data: Blob): Promise<void>; close(): Promise<void>; abort(): Promise<void> }> }>;
 }
-export interface CourseDownloadState { handle?: DirectoryHandle; receipts: Record<string, Receipt>; lastDownload?: number; }
+export interface CourseDownloadState { handle?: DirectoryHandle; layout?: SaveLayout; receipts: Record<string, Receipt>; lastDownload?: number; }
 async function database(): Promise<IDBDatabase> {
     return new Promise((resolve, reject) => {
         const request = indexedDB.open('tact-material-download-v1', 1);
